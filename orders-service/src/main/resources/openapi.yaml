@@ -1,0 +1,260 @@
+openapi: 3.0.1
+
+info:
+  title: Orders Service API
+  description: API для управления заказами
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:9002
+    description: Orders Service
+
+paths:
+  /orders:
+    post:
+      summary: Создание нового заказа
+      description: Создает новый заказ с товарными позициями.
+        По мере необходимости тянет с сервиса генерации батчи с номерами заказов и сохраняет в конкаррент очередь.
+        * Если данные корректны, возвращает 201 Created.
+        * Если в данных ошибка, возвращает 400 Bad Request.
+      operationId: createOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderRequestDTO'
+            examples:
+              validOrder:
+                summary: Пример корректного заказа
+                value:
+                  orderDate: "2024-08-08"
+                  recipient: "Семен Семенов"
+                  deliveryAddress: "Москва, ул. Ленина, д. 1"
+                  paymentType: "CARD"
+                  deliveryType: "PICKUP"
+                  details:
+                    - productCode: 107
+                      productName: "Клавиатура"
+                      quantity: 2
+                      unitPrice: 6000.00
+              invalidOrder:
+                summary: Пример некорректного заказа
+                value:
+                  orderDate: "2024-44-44"
+                  recipient: "Семен Семенов"
+                  deliveryAddress: "Москва, ул. Ленина, д. 1"
+                  paymentType: "CARD"
+                  deliveryType: "PICKUP"
+                  details:
+                    - productCode: 107
+                      productName: "Клавиатура"
+                      quantity: 2
+                      unitPrice: 6000.00
+      responses:
+        '201':
+          description: JSON корректен, успешное оформление заказа.
+        '400':
+          description: Ввод некорректных данных при создании заказа.
+
+  /orders/{id}:
+    get:
+      summary: Получить заказ по ID
+      description: Получить заказ по его уникальному идентификатору.
+      operationId: getOrderById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Id заказа
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Информация о заказе
+        '404':
+          description: Заказ с таким id не найден.
+
+  /orders/filtered:
+    get:
+      summary: Получить список заказов
+      description: Получить все заказы на определенную дату от указанной суммы
+      operationId: getOrdersByDateAndAmount
+      parameters:
+        - name: date
+          in: query
+          description: Дата заказа
+          required: false
+          schema:
+            type: string
+            format: date
+          examples:
+            'Дата с заказами':
+              value: '2024-05-05'
+            'Дата без заказов':
+              value: '2024-07-20'
+        - name: minAmount
+          in: query
+          description: Минимальная сумма заказа
+          required: false
+          schema:
+            type: number
+            format: double
+          examples:
+            '200':
+              value: 10000
+            '404':
+              value: 500000
+      responses:
+        '200':
+          description: Список заказов
+        '404':
+          description: Нет заказов, соответствующих условию
+
+  /orders/excludes:
+    get:
+      summary: Получить заказы, не содержащие определённый товар
+      description: Получить заказы за период времени, не содержащие определённый товар.
+      operationId: getOrdersExcludingProduct
+      parameters:
+        - name: productCode
+          in: query
+          required: true
+          description: Код товара
+          schema:
+            type: integer
+            format: int64
+          examples:
+            'Телевизор':
+              value: 101
+            'Мобильный телефон':
+              value: 103
+            'Несуществующий код товара':
+              value: 7
+        - name: startDate
+          in: query
+          required: true
+          description: Начало периода
+          schema:
+            type: string
+            format: date
+          examples:
+            'Дата первого заказа':
+              value: '2024-03-03'
+            'Дата промежуточного заказа':
+              value: '2024-04-04'
+        - name: endDate
+          in: query
+          required: true
+          description: Конец периода
+          schema:
+            type: string
+            format: date
+          examples:
+            'Дата последних заказов':
+              value: '2024-05-05'
+            'Дата промежуточного заказа':
+              value: '2024-04-04'
+      responses:
+        '200':
+          description: Список заказов без указанного товара
+        '404':
+          description: Нет указанного кода товара, либо нет заказов в заданном интервале дат
+
+components:
+  schemas:
+    OrderRequestDTO:
+      type: object
+      properties:
+        orderDate:
+          type: string
+          format: date
+        recipient:
+          type: string
+        deliveryAddress:
+          type: string
+        paymentType:
+          type: string
+          enum:
+            - CARD
+            - CASH
+        deliveryType:
+          type: string
+          enum:
+            - PICKUP
+            - DOOR_DELIVERY
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderDetailRequestDTO'
+      required:
+        - orderDate
+        - recipient
+        - deliveryAddress
+        - paymentType
+        - deliveryType
+        - details
+
+    OrderResponseDTO:
+      type: object
+      properties:
+        orderNumber:
+          type: string
+        totalAmount:
+          type: number
+          format: double
+        orderDate:
+          type: string
+          format: date
+        recipient:
+          type: string
+        deliveryAddress:
+          type: string
+        paymentType:
+          type: string
+          enum:
+            - CARD
+            - CASH
+        deliveryType:
+          type: string
+          enum:
+            - PICKUP
+            - DOOR_DELIVERY
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderDetailResponseDTO'
+
+    OrderDetailRequestDTO:
+      type: object
+      properties:
+        productCode:
+          type: integer
+          format: int64
+        productName:
+          type: string
+        quantity:
+          type: integer
+        unitPrice:
+          type: number
+          format: double
+      required:
+        - productCode
+        - productName
+        - quantity
+        - unitPrice
+
+    OrderDetailResponseDTO:
+      type: object
+      properties:
+        productCode:
+          type: integer
+          format: int64
+        productName:
+          type: string
+        quantity:
+          type: integer
+        unitPrice:
+          type: number
+          format: double

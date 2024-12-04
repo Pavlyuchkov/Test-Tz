@@ -1,0 +1,26 @@
+server:
+  port: 9002
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/orders_db
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/changelog-master.yaml
+    drop-first: true
+
+number-generate-service:
+  url: http://number-generate-service:9102/generate/numbers
+
+springdoc:
+  swagger-ui:
+    url: http://localhost:9002/swagger

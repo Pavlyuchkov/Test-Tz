@@ -1,0 +1,12 @@
+server:
+  port: 9102
+
+spring:
+  data:
+    redis:
+      host: redis_db
+      port: 6379
+
+orders:
+  service:
+    url: http://orders-service:9002/numbers/request

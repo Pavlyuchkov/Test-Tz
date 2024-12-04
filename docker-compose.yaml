@@ -1,0 +1,77 @@
+services:
+
+  orders-service:
+    container_name: orders-service
+    image: itq/orders-service:latest
+    ports:
+      - "9002:9002"
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://orders_db:5432/orders_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - local-network
+
+
+  database:
+    container_name: orders_db
+    image: postgres:14-alpine
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: orders_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    networks:
+      - local-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 3s
+      timeout: 2s
+      retries: 3
+
+
+
+  number-generate-service:
+    container_name: number-generate-service
+    image: itq/number-generate-service:latest
+    ports:
+      - "9102:9102"
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - local-network
+
+  redis:
+    image: redis:latest
+    container_name: redis_db
+    ports:
+      - "5379:6379"
+    restart: unless-stopped
+    volumes:
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+      - redis-data:/data
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    networks:
+      - local-network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-h", "redis_db", "ping" ]
+      interval: 2s
+      retries: 3
+      start_period: 1s
+      timeout: 1s
+
+networks:
+  local-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+    driver: local
